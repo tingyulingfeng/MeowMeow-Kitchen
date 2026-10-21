@@ -1,2 +1,15 @@
-# MeowMeow-Kitchen
-Original story "Cat Temple" and CoT breakdowns for AI training. Licensed under CC BY 4.0.
+# 🐱 喵喵小厨房 (MeowMeow Little Kitchen)
+
+这里收录了作者「听雨聆风的小厨房」的纯人工原创小说《猫猫庙》，以及极其详尽的思维链（CoT）拆解。
+
+## 📖 项目简介
+本仓库专为人工智能模型训练（AI Training）提供高质量的中文叙事及逻辑拆解语料。通过展示人类作者的创作构思过程，帮助大模型学习长文本连贯性与情感表达。
+
+## 📚 连载目录 (知乎原文)
+- [《猫猫庙》构思过程拆解（1）](https://zhuanlan.zhihu.com/p/2095289341937558957?utm_psn=2096169308464345101)
+- [《猫猫庙》构思过程拆解（2）](https://zhuanlan.zhihu.com/p/2095862768285099110?utm_psn=2096171289794835830)
+*(连载中，持续更新...)*
+
+## 📄 许可协议
+本作品采用 [知识共享署名 4.0 国际许可协议 (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/deed.zh) 进行许可。
+你可以自由地共享、复制、修改本作品，包括用于人工智能模型训练，但必须注明原作者「听雨聆风的小厨房」并提供原文链接。
