@@ -72,7 +72,8 @@ def main():
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
-    paras = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8") if l.strip()]
+    paras_all = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8") if l.strip()]
+    paras = paras_all
     n = len(paras)
     last_ids = {p["para_id"] for p in paras[-3:]}
 
@@ -119,25 +120,90 @@ def main():
     print("  结尾三段回收的意象：%s"
           % ("、".join(g for g, ps in rows if set(ps) & last_ids) or "无"))
 
-    # 人工标注
+    # ---------- 作者填写的暗线（补充窗口）----------
     theme = None
     if len(sys.argv) > 2:
         rows2 = [json.loads(l) for l in open(sys.argv[2], encoding="utf-8") if l.strip()]
         for r in rows2:
             if r.get("theme"):
-                theme = theme or []
-                theme.append((r["para"], r["theme"]))
+                theme = r["theme"]
+                break
 
     print("\n" + "=" * 62)
-    print("D. 评分（需要人工给判断）")
+    print("D. 作者填写的暗线")
     print("=" * 62)
-    if theme:
-        for pid, t in theme:
-            print("  段%-2d  %s" % (pid, t))
-    print("  深度   —— / 6.0   （载体有没有第二层含义：人工判）")
-    print("  契合度 —— / 6.0   （暗线与明线的对应点有几个：人工判）")
-    print()
-    print("  ※ 这一项工具只能抽证据，判不了。上面三样是给人看的材料。")
+    if not theme:
+        print("  （未填写。工具判不了暗线，这一项必须作者填。）")
+        print("  深度   —— / 6.0")
+        print("  契合度 —— / 6.0")
+        return 0
+
+    st = theme.get("statement", "").strip()
+    pts = theme.get("points") or []
+    print("  暗线一句话：%s" % (st or "（空）"))
+    print("  对应点 %d 个：" % len(pts))
+    ok_pts = 0
+    for i, p in enumerate(pts, 1):
+        surf = p.get("surface", "").strip()
+        under = p.get("under", "").strip()
+        paras = p.get("paras") or []
+        # 工具核对：段号是否存在；该段正文是否真的含这个"明面"关键词
+        bad = []
+        for pid in paras:
+            row = next((x for x in paras_all if x["para_id"] == pid), None)
+            if row is None:
+                bad.append("段%d 不存在" % pid)
+            elif surf and surf[:2] not in row["text"] and not any(
+                    k and k in row["text"] for k in p.get("keys", [])):
+                bad.append("段%d 里找不到这个明面" % pid)
+        state = "✓" if (surf and under and paras and not bad) else "⚠"
+        if state == "✓":
+            ok_pts += 1
+        print("  %s %d. %s  ↔  %s   [段 %s]"
+              % (state, i, surf or "（空）", under or "（没写暗面）",
+                 ",".join(map(str, paras)) or "—"))
+        for b in bad:
+            print("        ⚠ %s" % b)
+
+    said = theme.get("said_out_loud")
+    if said is None:
+        said = len(hits)
+
+    # ---------- 评分 ----------
+    # 深度：写得清 2 + 每个点都有暗面 2 + 点破控制 2
+    s_state = 2.0 if st else 0.0
+    s_under = 2.0 * (min(ok_pts, len(pts)) / len(pts)) if pts else 0.0
+    if said <= 0:
+        s_said = 2.0
+    elif said <= 2:
+        s_said = 1.5
+    elif said <= 4:
+        s_said = 1.0
+    else:
+        s_said = 0.5
+    depth = s_state + s_under + s_said
+
+    # 契合度：对应点数量（每条都要能核对上）
+    n_ok = ok_pts
+    if n_ok >= 4:
+        fit = FULL_FIT
+    elif n_ok == 3:
+        fit = 4.5
+    elif n_ok == 2:
+        fit = 3.0
+    elif n_ok == 1:
+        fit = 1.5
+    else:
+        fit = 0.0
+
+    print("\n" + "=" * 62)
+    print("E. 评分")
+    print("=" * 62)
+    print("  深度    %4.1f / %.1f   说清了 %.0f + 暗面齐 %.1f + 点破控制 %.1f（点破 %d 句）"
+          % (depth, FULL_DEPTH, s_state, s_under, s_said, said))
+    print("  契合度  %4.1f / %.1f   能核对上的对应点 %d 个" % (fit, FULL_FIT, n_ok))
+    print("  " + "-" * 56)
+    print("  %-6s %4.1f / %.1f" % ("合计", depth + fit, FULL_DEPTH + FULL_FIT))
     return 0
 
 
