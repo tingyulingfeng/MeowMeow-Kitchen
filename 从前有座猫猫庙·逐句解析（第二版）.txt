@@ -9,6 +9,7 @@
 发布状态：已公开发布。
 稿件版本：v2.0（第二版·修订稿）
 原文出处（知乎专栏）：https://www.zhihu.com/column/c_2097379445871006057
+本篇链接（知乎）：https://zhuanlan.zhihu.com/p/2101417058965645242
 完整文件（GitHub）：https://github.com/tingyulingfeng/MeowMeow-Kitchen
 
 【关于版本】
