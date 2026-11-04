@@ -28,7 +28,7 @@ FILES = {
 # source -> (verified 默认, weight)
 POLICY = {
     "scraped": (True, 1.0),
-    "authored": (False, 0.9),
+    "authored": (False, 0.5),   # 自撰：能力尚不足，先压低（2026-11-05 按作者要求下调）
     "adapted": (False, 0.8),
     "user": (False, 0.4),      # 用户未验证
     "user_verified": (True, 0.7),
