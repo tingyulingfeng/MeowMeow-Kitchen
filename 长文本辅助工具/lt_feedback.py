@@ -33,8 +33,10 @@ FORCE_MAP = {
 }
 FORCE_CN = {"weak": "不够", "right": "刚好", "over": "过了"}
 
-# 骨架胜率权重：不够 -> 0（白写了）；刚好 -> 1；过了 -> -0.5（可能越界）
-FORCE_W = {"weak": 0.0, "right": 1.0, "over": -0.5}
+# 骨架胜率权重（2026-11-05 作者定稿）
+# 「过了」不是越界，是**目标**——往死里嘲讽本来就该把人惹毛。
+# 不够 -> 0（白写了）；刚好 -> +0.2（有效但还留了面子）；过了 -> +1.0（成功）
+FORCE_W = {"weak": 0.0, "right": 0.2, "over": 1.0}
 
 
 def load():
@@ -74,7 +76,6 @@ def cmd_intake(path):
         "submitted_at": now,
         "force": force,
         "no_face": kv.get("哪里面子没给够", ""),
-        "quoted_dispute": kv.get("想反驳的一句", ""),
         "free_comment": kv.get("想说的话", ""),
     }
     rows.append(e)
@@ -89,8 +90,6 @@ def cmd_intake(path):
         f.write("  嘲讽够不够力：%s\n" % FORCE_CN[force])
         if e["no_face"]:
             f.write("  哪里面子没给够：%s\n" % e["no_face"])
-        if e["quoted_dispute"]:
-            f.write("  想反驳：%s\n" % e["quoted_dispute"])
         if e["free_comment"]:
             f.write("  想说的：%s\n" % e["free_comment"])
         f.write("\n")
@@ -98,7 +97,7 @@ def cmd_intake(path):
     print("✓ 已记 %s" % e["feedback_id"])
     print("  反馈记录.txt（按时间顺序）  +  反馈表.jsonl（结构化）")
     if force == "over":
-        print("  ⚠ 标了「过了」—— 检查是不是骂到了人而不是行为")
+        print("  ✓ 标了「过了」—— 这条骨架记满分，说明真扎到了")
     if force == "weak":
         print("  ⚠ 标了「不够」—— 这条骨架该加重或淘汰")
     return 0
@@ -116,9 +115,16 @@ def cmd_stats():
     for x in rows:
         c[x["force"]] += 1
     print("  嘲讽力度：", {FORCE_CN[k]: n for k, n in c.items()})
-    right = c.get("right", 0) / len(rows)
-    print("  「刚好」占比 %.0f%%%s"
-          % (right * 100, "" if right >= 0.5 else "   ← 低于一半，说明力度控制有问题"))
+    n = len(rows)
+    over = c.get("over", 0) / n
+    weak = c.get("weak", 0) / n
+    print("  「过了」占比 %.0f%%   ← 这是目标，越高越好" % (over * 100))
+    if weak >= 0.5:
+        print("  ⚠ 「不够」占 %.0f%% —— 力度明显不足，骨架要换" % (weak * 100))
+    elif over >= 0.5:
+        print("  ✓ 「过了」占 %.0f%% —— 力度到位" % (over * 100))
+    else:
+        print("  · 力度偏温和，还能再狠一点")
 
     face = [x for x in rows if x.get("no_face")]
     if face:
