@@ -158,22 +158,33 @@ def main():
     s_con = F_CONCRETE * ratio
 
     if not cites:
+        # 无引用：这 2 分并入「具体化」。
+        # 理由：引用是借别人已经落地的表达，具体化是自己落地，两者作用同向。
+        # 原作品不该因为没借别人的东西而被扣分。
         s_cite = 0.0
-        why_cite = "无引用 —— 这一项不留分（考的是用典能力，不用就没有表现）"
+        cap_cite = 0.0
+        s_con = (F_CONCRETE + F_CITE) * ratio
+        cap_con = F_CONCRETE + F_CITE
+        why_cite = "无引用 —— 该项 2 分并入具体化（引用是借力，具体化是自己落地）"
     else:
         bad = [c for _, c in cites if not c.get("accurate", True) or c.get("fit", True) is False]
         s_cite = max(0.0, F_CITE - PEN_CITE * len(bad))
+        cap_cite = F_CITE
+        s_con = F_CONCRETE * ratio
+        cap_con = F_CONCRETE
         why_cite = "%d 处引用，%d 处不当（准确度 / 契合度）" % (len(cites), len(bad))
 
     print("  错别字    %4.1f / %.1f   命中 %d 处" % (s_typo, F_TYPO, len(typo)))
     print("  查错      %4.1f / %.1f   语义重复 %d，句长%s"
           % (s_err, F_WORD_ERR, len(sem), "偏齐" if flat else "正常"))
-    print("  具体化    %4.1f / %.1f   概括句 %d / %d"
-          % (s_con, F_CONCRETE, len(abs_sents), len(sl)))
-    print("  引用      %4.1f / %.1f   %s" % (s_cite, F_CITE, why_cite))
+    print("  具体化    %4.1f / %.1f   概括句 %d / %d%s"
+          % (s_con, cap_con, len(abs_sents), len(sl),
+             "（含引用让出的 2 分）" if not cites else ""))
+    print("  引用      %4.1f / %.1f   %s" % (s_cite, cap_cite, why_cite))
     print("  " + "-" * 56)
     total = s_typo + s_err + s_con + s_cite
-    print("  %-8s %5.1f / %.1f" % ("合计", total, F_TYPO + F_WORD_ERR + F_CONCRETE + F_CITE))
+    cap = F_TYPO + F_WORD_ERR + cap_con + cap_cite
+    print("  %-8s %5.1f / %.1f" % ("合计", total, cap))
     return 0
 
 
