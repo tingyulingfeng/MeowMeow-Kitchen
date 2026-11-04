@@ -1,118 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""P3 落差回收：吃 P1 的 open_q 列，算伏笔台账与回收率。
+"""P3 落差回收：伏笔台账与回收率。
 
-标注约定（在 P1 标注文件里追加一个字段 `q_resolved`）
-  数字         = 在第几段回答的
-  "intentional"= 作者有意不答（留白），不计入未回收
-  "none"       = 忘了收（这才是缺陷）
-  缺省         = 未标注，按"待查"处理，不计分但会列出来
+两类缺陷都要算（伏笔的两头）
+  ① 收：埋了没收     标注 open_q 而 q_resolved 为 "none"
+  ② 埋：该埋没埋     后文突然出现的元素，前文没铺垫 —— 标注 unplanted: ["元素名", ...]
 
-指标
-  埋了几条 / 收了几条 / 有意留白几条 / 真未收几条
-  回收距离 = 回答段 − 埋设段
-  距离分布：短问答（≤2 段）与长伏笔（≥5 段）各有几条
+标注约定（在 P1 标注文件里追加字段）
+  q_resolved
+     数字          在第几段回答的
+     "intentional" 有意不答（留白），不计入未回收
+     "none"        忘了收 —— 缺陷
+     缺省          未标注，列出但不计分
+  unplanted
+     ["柿子树"]    这一段出现的元素，本应在前文埋过但没有 —— 缺陷
 
-评分（落差回收 5 分）
-  回收率  占 60%   = 已收 /（已收 + 真未收），有意留白不算
-  距离覆盖占 40%   = 短问答与长伏笔都出现才满分（只短=没悬念，只长=读者会忘）
-
-用法：python p3_score.py 标注文件.jsonl
+评分（5 分）
+  5 × ( 回收率×0.6 + 距离覆盖度×0.4 ) − 每处"该埋没埋"扣 1 分，最低 0
 """
-import json
 import sys
-import statistics as st
-
-sys.path.insert(0, ".")
-from p1_curve import load
 
 FULL = 5.0
 W_RATE = 0.6
 W_SPREAD = 0.4
 SHORT = 2          # ≤2 段算短问答
 LONG = 5           # ≥5 段算长伏笔
-
-
-def main():
-    if len(sys.argv) < 2:
-        print(__doc__)
-        return 2
-    rows = load(sys.argv[1])
-
-    seeds = [(r["para"], r["open_q"]) for r in rows
-             if r["open_q"] not in ("—", "-", "")]
-    resolved, intentional, missing, pending = [], [], [], []
-
-    for p, q in seeds:
-        r = next(x for x in rows if x["para"] == p)
-        v = r.get("q_resolved")
-        if v is None:
-            pending.append((p, q))
-        elif v == "intentional":
-            intentional.append((p, q))
-        elif v == "none":
-            missing.append((p, q))
-        else:
-            resolved.append((p, q, int(v)))
-
-    print("=" * 62)
-    print("伏笔台账")
-    print("=" * 62)
-    print("  埋设 %d 条   已收 %d   有意留白 %d   真未收 %d   未标注 %d"
-          % (len(seeds), len(resolved), len(intentional), len(missing), len(pending)))
-    print()
-    for p, q, t in resolved:
-        d = t - p
-        tag = "短问答" if d <= SHORT else ("长伏笔" if d >= LONG else "中距离")
-        print("  段%2d 埋：%s" % (p, q))
-        print("        段%2d 收   距离 %2d 段   %s" % (t, d, tag))
-    for p, q in intentional:
-        print("  段%2d 埋：%s" % (p, q))
-        print("        有意留白（不计未回收）")
-    for p, q in missing:
-        print("  段%2d 埋：%s" % (p, q))
-        print("        ✗ 未回收——这是缺陷")
-    for p, q in pending:
-        print("  段%2d 埋：%s" % (p, q))
-        print("        待标注 q_resolved")
-
-    # ---------- 指标 ----------
-    denom = len(resolved) + len(missing)
-    rate = len(resolved) / denom if denom else 1.0
-
-    dists = [t - p for p, _, t in resolved]
-    n_short = sum(1 for d in dists if d <= SHORT)
-    n_long = sum(1 for d in dists if d >= LONG)
-    cover = 0.0
-    if dists:
-        cover = min(n_short / 1, 1.0) * 0.5 + min(n_long / 1, 1.0) * 0.5
-
-    print("\n" + "=" * 62)
-    print("指标")
-    print("=" * 62)
-    if dists:
-        print("  回收距离 %s   均值 %.1f   最短 %d   最长 %d"
-              % (dists, st.mean(dists), min(dists), max(dists)))
-    else:
-        print("  回收距离 —")
-    print("  短问答（≤%d段）%d 条   长伏笔（≥%d段）%d 条" % (SHORT, n_short, LONG, n_long))
-    print("  回收率 %.0f%%（已收 %d / 应收 %d，有意留白不计）"
-          % (rate * 100, len(resolved), denom))
-    print("  距离覆盖度 %.0f%%（短问答与长伏笔都有才满分）" % (cover * 100))
-
-    s = FULL * (W_RATE * rate + W_SPREAD * cover)
-    print("\n" + "=" * 62)
-    print("评分")
-    print("=" * 62)
-    print("  落差回收  %.2f / %.1f   %s"
-          % (s, FULL, "█" * int(round(s / FULL * 10))))
-    print("            回收率 %.0f%%×%.1f + 距离覆盖 %.0f%%×%.1f"
-          % (rate * 100, W_RATE, cover * 100, W_SPREAD))
-    return 0
+PENALTY_UNPLANTED = 1.0
 
 
 def ledger(rows):
-    """返回伏笔台账与得分，供其他脚本调用。"""
+    """返回台账、指标与得分。"""
     seeds = [(r["para"], r["open_q"]) for r in rows
              if r["open_q"] not in ("—", "-", "")]
     resolved, intentional, missing, pending = [], [], [], []
@@ -127,21 +44,86 @@ def ledger(rows):
             missing.append((p_, q))
         else:
             resolved.append((p_, q, int(v)))
+
+    # 该埋没埋
+    unplanted = []
+    for r in rows:
+        for x in (r.get("unplanted") or []):
+            unplanted.append((r["para"], x))
+
     denom = len(resolved) + len(missing)
     rate = len(resolved) / denom if denom else 1.0
+
     dists = [t - p_ for p_, _, t in resolved]
     n_short = sum(1 for d in dists if d <= SHORT)
     n_long = sum(1 for d in dists if d >= LONG)
     cover = 0.0
     if dists:
         cover = min(n_short, 1) * 0.5 + min(n_long, 1) * 0.5
-    s = FULL * (W_RATE * rate + W_SPREAD * cover)
+
+    base = FULL * (W_RATE * rate + W_SPREAD * cover)
+    s = max(0.0, base - PENALTY_UNPLANTED * len(unplanted))
+
+    why = ("【收】回收率 %.0f%%（收 %d / 应 %d，留白 %d 不计）+ 距覆 %.0f%%（短问答 %d，长伏笔 %d）"
+           "  ｜  【埋】该埋没埋 %d 处，扣 %.1f"
+           % (rate * 100, len(resolved), denom, len(intentional), cover * 100,
+              n_short, n_long, len(unplanted), PENALTY_UNPLANTED * len(unplanted)))
+
     return {"seeds": len(seeds), "resolved": resolved, "intentional": intentional,
-            "missing": missing, "pending": pending, "n_resolved": len(resolved),
-            "n_intentional": len(intentional), "n_missing": len(missing),
-            "dists": dists, "rate": rate, "cover": cover, "score": s,
-            "why": "回收率 %.0f%%（收 %d / 应 %d，留白不计）+ 距覆 %.0f%%（短问答 %d，长伏笔 %d）"
-                   % (rate * 100, len(resolved), denom, cover * 100, n_short, n_long)}
+            "missing": missing, "pending": pending, "unplanted": unplanted,
+            "n_resolved": len(resolved), "n_intentional": len(intentional),
+            "n_missing": len(missing), "n_unplanted": len(unplanted),
+            "dists": dists, "rate": rate, "cover": cover,
+            "base": base, "score": s, "why": why}
+
+
+def main():
+    sys.path.insert(0, ".")
+    from p1_curve import load
+    if len(sys.argv) < 2:
+        print(__doc__)
+        return 2
+    L = ledger(load(sys.argv[1]))
+
+    print("=" * 62)
+    print("伏笔台账")
+    print("=" * 62)
+    print("  埋设 %d 条   已收 %d   有意留白 %d   真未收 %d   未标注 %d   该埋没埋 %d"
+          % (L["seeds"], L["n_resolved"], L["n_intentional"], L["n_missing"],
+             len(L["pending"]), L["n_unplanted"]))
+    print()
+    for p, q, t in L["resolved"]:
+        d = t - p
+        tag = "短问答" if d <= SHORT else ("长伏笔" if d >= LONG else "中距离")
+        print("  段%2d 埋：%s" % (p, q))
+        print("        段%2d 收   距离 %2d 段   %s" % (t, d, tag))
+    for p, q in L["intentional"]:
+        print("  段%2d 埋：%s" % (p, q))
+        print("        有意留白（不计未回收）")
+    for p, q in L["missing"]:
+        print("  段%2d 埋：%s" % (p, q))
+        print("        ✗ 未回收 —— 缺陷")
+    for p, q in L["pending"]:
+        print("  段%2d 埋：%s" % (p, q))
+        print("        待标注 q_resolved")
+    for p, x in L["unplanted"]:
+        print("  段%2d 出现：%s" % (p, x))
+        print("        ✗ 该埋没埋 —— 前文无铺垫，读者当新元素看")
+
+    print("\n" + "=" * 62)
+    print("指标与评分")
+    print("=" * 62)
+    if L["dists"]:
+        print("  回收距离 %s   均值 %.1f   最长 %d"
+              % (L["dists"], sum(L["dists"]) / len(L["dists"]), max(L["dists"])))
+    print("  回收率 %.0f%%   距离覆盖度 %.0f%%" % (L["rate"] * 100, L["cover"] * 100))
+    print("  基础分 %.2f  −  该埋没埋 %d 处 × %.1f = %.2f"
+          % (L["base"], L["n_unplanted"], PENALTY_UNPLANTED,
+             L["base"] - L["score"]))
+    print()
+    print("  落差回收  %.2f / %.1f   %s"
+          % (L["score"], FULL, "█" * int(round(L["score"] / FULL * 10))))
+    return 0
 
 
 if __name__ == "__main__":
