@@ -25,7 +25,7 @@ import re
 import sys
 import statistics as st
 
-F_TYPO, F_WORD_ERR, F_CONCRETE, F_CITE = 1.0, 2.0, 6.0, 2.0
+F_TYPO, F_WORD_ERR, F_CONCRETE = 1.0, 2.0, 6.0   # 引用 2 分已划给暗线
 
 PEN_SEMANTIC = 0.5
 PEN_FLAT = 1.0
