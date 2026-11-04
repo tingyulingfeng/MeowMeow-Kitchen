@@ -20,7 +20,7 @@
 {"para": 20, "strength": 1, "direction": 0, "function": "交代", "open_q": "回去会看到什么", "note": "毕业离开，几年后求爸爸带我回去，拉长时间线", "carrier": true, "q_resolved": 23, "dtype": "事件"}
 {"para": 21, "strength": 2, "direction": 1, "function": "蓄势", "open_q": "—", "note": "激动到想呐喊助威，再次上行", "dtype": "心理"}
 {"para": 22, "strength": 2, "direction": -1, "function": "转折", "open_q": "—", "note": "这终究只是我的幻想，短句急转", "dtype": "心理"}
-{"para": 23, "strength": 2, "direction": -1, "function": "转折", "open_q": "—", "note": "路上听说小山被清理改建公园", "dtype": "事件"}
+{"para": 23, "strength": 2, "direction": -1, "function": "转折", "open_q": "—", "note": "路上听说小山被清理改建公园", "dtype": "事件", "logic": [{"issue": "「旧房子」指代模糊，读者会疑惑指的是哪几间", "severity": "中"}]}
 {"para": 24, "strength": 2, "direction": -1, "function": "释放", "open_q": "—", "note": "激动期待转瞬只剩失落怅然", "dtype": "心理"}
 {"para": 25, "strength": 2, "direction": 1, "function": "回收", "open_q": "—", "note": "还记得猫猫们肉嘟嘟软乎乎（与手写七阶段的口径差异，见报告）", "dtype": "角色"}
 {"para": 26, "strength": 2, "direction": 1, "function": "回收", "open_q": "—", "note": "破屋破井破院，破旧却吸引我们", "dtype": "环境"}
