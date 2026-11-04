@@ -70,6 +70,36 @@ def pronouns(paras):
     return out
 
 
+def vanish(paras):
+    """人物/群体出现后中途消失。
+
+    判据：某个人物或群体在文本前段出现，之后再没出现，
+    而全文还长着——读者会问"他们哪去了"，这已经到了影响判断的程度。
+
+    规则：首现 ≤ 全文 40%，末现 ≤ 全文 60%，且跨度 ≥ 3 段。
+    """
+    n = len(paras)
+    idx = {p["para_id"]: i for i, p in enumerate(paras)}
+    PRON = {"我们", "你们", "他们", "她们", "它们", "咱们", "人们"}
+    seen = {}
+    for p in paras:
+        t = p["text"]
+        cand = set(re.findall(r"[\u4e00-\u9fa5]{1,3}们", t)) - PRON
+        cand |= {w for w in ["爸爸", "妈妈"] if w in t}
+        for w in cand:
+            seen.setdefault(w, []).append(p["para_id"])
+
+    out = []
+    for w, ps in seen.items():
+        first, last = min(ps), max(ps)
+        # 判据是"消失得早不早"，不是"跨度大不大"：
+        # 出现 ≥2 次、首现在前 40%、末现不晚于 60% 之后，就算中途消失。
+        if len(ps) >= 2 and idx[first] <= n * 0.4 and idx[last] <= n * 0.6:
+            out.append((w, first, last, len(ps)))
+    out.sort(key=lambda x: x[1])
+    return out
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -101,7 +131,18 @@ def main():
         print("  %-8s 出现于段 %s" % (n, ",".join(map(str, pids))))
 
     print("\n" + "=" * 62)
-    print("C. 代词开头的句子（可能指代不明）")
+    print("C. 人物/群体：出现后消失")
+    print("=" * 62)
+    vn = vanish(paras)
+    if not vn:
+        print("  未发现")
+    for w, f, l, c in vn:
+        print("  「%s」首现段%-2d，末现段%-2d，共 %d 段 —— 之后再无交代" % (w, f, l, c))
+    if vn:
+        print("  ※ 读者会问「他们哪去了」。这属于逻辑问题，不是伏笔。")
+
+    print("\n" + "=" * 62)
+    print("D. 代词开头的句子（可能指代不明）")
     print("=" * 62)
     if not prons:
         print("  未发现")
@@ -117,7 +158,7 @@ def main():
                 issues.append((r["para"], it.get("issue", ""), it.get("severity", "中")))
 
     print("\n" + "=" * 62)
-    print("D. 逻辑问题（人工标注）")
+    print("E. 逻辑问题（人工标注）")
     print("=" * 62)
     if not issues:
         print("  未标注（只表示没查出来，不等于没有）")

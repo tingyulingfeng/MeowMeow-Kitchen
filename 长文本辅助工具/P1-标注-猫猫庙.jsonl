@@ -1,7 +1,7 @@
 {"para": 1, "strength": 1, "direction": 1, "function": "安抚", "open_q": "—", "note": "童谣定调，把读者按到童年位置上", "dtype": "其他"}
 {"para": 2, "strength": 1, "direction": 1, "function": "交代", "open_q": "—", "note": "四要素介绍，时间人物前置", "dtype": "事件"}
 {"para": 3, "strength": 1, "direction": -1, "function": "铺垫", "open_q": "这地方有什么好写的", "note": "欲扬先抑的抑，磕碜/小黑疙瘩", "q_resolved": 4, "dtype": "环境"}
-{"para": 4, "strength": 2, "direction": 1, "function": "转折", "open_q": "为什么是秘密基地", "note": "视线都不停一秒→却是秘密基地，反差成立", "q_resolved": 5, "dtype": "事件"}
+{"para": 4, "strength": 2, "direction": 1, "function": "转折", "open_q": "为什么是秘密基地", "note": "视线都不停一秒→却是秘密基地，反差成立", "q_resolved": 5, "dtype": "事件", "logic": [{"issue": "第4、6段引入「我和小伙伴们」，之后全文再无交代，第20段起只剩「我」——读者会问他们去哪了", "severity": "重"}]}
 {"para": 5, "strength": 1, "direction": 1, "function": "交代", "open_q": "—", "note": "救猫经过不多赘述，主动略写", "unplanted": ["这只小猫与后文七只花猫的关系（未点明它是老幺，伏笔没成型）"], "dtype": "事件"}
 {"para": 6, "strength": 1, "direction": 1, "function": "铺垫", "open_q": "—", "note": "放学就去找猫，日常建立", "dtype": "事件"}
 {"para": 7, "strength": 1, "direction": 1, "function": "铺垫", "open_q": "—", "note": "大白登场，胖+守门槛", "dtype": "角色"}
