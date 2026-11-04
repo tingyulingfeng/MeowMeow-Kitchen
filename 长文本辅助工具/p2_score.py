@@ -122,7 +122,7 @@ def metrics(rows, th=2):
             "entropy": H_norm, "func_cnt": cnt, "ratios": ratios}
 
 
-def score(m):
+def score(m, rows):
     out = {}
 
     # 落差
@@ -153,9 +153,32 @@ def score(m):
                              "功能熵 %.3f（%d 种功能）"
                              % (m["entropy"], len(m["func_cnt"])))
 
-    # 配比：规则未定，暂不计分（见 P2-报告.md「未解决」一节）
-    out["落差幅度与铺垫层数比例"] = (None,
-                                 "规则待定——统一区间会把「慢爬坡」「急收」这类正常手法误判为越界")
+    # 配比：判"急跌有没有被接住"，不判"比例大小"
+    # 作者原则：阶梯与碎片都是把大段描述拆散，让曲线圆滑；圆滑是常态，
+    # 集中本身不算错，但急跌必须有一个"载体段"接住它。
+    CARRIER = ("转折", "释放", "留白")
+    falls = [d for d in m["drops"] if d["v2"] < d["v1"]]      # 下行
+    steep = [d for d in falls
+             if d["drop"] >= 3 and d["span"] <= 2]            # 急跌：3 级以上且 ≤2 段
+    caught = []
+    for d in steep:
+        tgt = next((r for r in rows if r["para"] == d["to"]), None)
+        # 标注里若写了 carrier 字段，以标注为准（人工判断优先于工具的默认规则）
+        override = tgt.get("carrier") if tgt else None
+        if override is None:
+            ok = bool(tgt and tgt["function"] in CARRIER)
+            why = "功能：" + (tgt["function"] if tgt else "?")
+        else:
+            ok = bool(override)
+            why = "人工标注"
+        caught.append({"d": d, "func": tgt["function"] if tgt else "?",
+                       "ok": ok, "why": why})
+    rate = (sum(1 for c in caught if c["ok"]) / len(caught)) if caught else 1.0
+    out["落差幅度与铺垫层数比例"] = (
+        SCORE["配比"]["full"] * rate,
+        "急跌 %d 处，有载体接住 %d 处（接住率 %.0f%%）"
+        % (len(caught), sum(1 for c in caught if c["ok"]), rate * 100))
+    m["caught"] = caught
     return out
 
 
@@ -199,7 +222,7 @@ def main():
     print("\n" + "=" * 62)
     print("B. 换算分数（主观，分档值待作者确认）")
     print("=" * 62)
-    sc = score(m)
+    sc = score(m, rows)
     total, fullsum = 0.0, 0.0
     for k, (v, why) in sc.items():
         key = {"氛围波动落差": "落差", "节奏": "节奏", "氛围变化连贯性": "连贯性",
@@ -216,8 +239,15 @@ def main():
         print("  %-12s %5.2f / %-4.1f  %s" % (k, v, full, bar))
         print("               %s" % why)
     print("  " + "-" * 58)
-    print("  %-12s %5.2f / %-4.1f   （不含待定的「配比」5 分）"
-          % ("小计", total, fullsum))
+    print("  %-12s %5.2f / %-4.1f" % ("小计", total, fullsum))
+
+    if m.get("caught"):
+        print("\n  急跌接住情况（落点功能为 转折/释放/留白 才算接住）：")
+        for c in m["caught"]:
+            d = c["d"]
+            print("    段%2d→%2d  落差 %d 级  跨 %d 段  落点功能=%s  %s"
+                  % (d["from"], d["to"], d["drop"], d["span"], c["func"],
+                     "接住" if c["ok"] else "未接住 ← 需人工判断是否故意"))
     return 0
 
 
