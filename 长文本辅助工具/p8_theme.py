@@ -182,35 +182,45 @@ def main():
     if said is None:
         said = len(hits)
 
-    # ---------- 评分 ----------
-    # 深度 6：锚定物有没有第二层 3 + 变化轨迹够不够完整 3
-    s_under = 3.0 * (ok_anchor / len(anchors)) if anchors else 0.0
-    s_traj = 3.0 * (full_anchor / len(anchors)) if anchors else 0.0
-    depth = s_under + s_traj
-
-    # 契合度 6：锚定物数量 3 + 每处状态都能在正文核对上 3
-    if len(anchors) >= 3:
-        s_cnt = 3.0
-    elif len(anchors) == 2:
-        s_cnt = 2.0
-    elif len(anchors) == 1:
-        s_cnt = 1.0
-    else:
-        s_cnt = 0.0
-    s_verify = 3.0 * (ok_states / total_states) if total_states else 0.0
-    fit = s_cnt + s_verify
+    # ---------- 评分：六条判据，各 2 分 ----------
+    CRIT = [
+        ("1", "锚定点的变化与暗线的关联度",
+         "状态变的是不是暗线要说的那件事"),
+        ("2", "锚定点变化方向与暗线一致的程度",
+         "往上走还是往下走，符不符合暗线（反讽也算，但要标出来）"),
+        ("3", "锚定点变化节奏与暗线一致的程度",
+         "变化集中在哪几段，是否踩在明线的转折点上"),
+        ("4", "暗线与明线各方面的综合关联度",
+         "人物、地点、时间、情绪，是否都有咬合"),
+        ("5", "暗线对提升整体氛围的作用程度",
+         "暗线讲到的时候，氛围是不是被推高了"),
+        ("6", "其他",
+         "上面五条没覆盖到的"),
+    ]
+    given = theme.get("scores") or {}
 
     print("\n" + "=" * 62)
-    print("E. 评分")
+    print("E. 六条判据（各 2 分，合计 12）")
     print("=" * 62)
-    print("  深度    %4.1f / %.1f   有第二层 %d/%d 个锚定物（%.1f）+ 轨迹 ≥3 态 %d 个（%.1f）"
-          % (depth, FULL_DEPTH, ok_anchor, len(anchors), s_under, full_anchor, s_traj))
-    print("  契合度  %4.1f / %.1f   锚定物 %d 个（%.1f）+ 状态可核对 %d/%d（%.1f）"
-          % (fit, FULL_FIT, len(anchors), s_cnt, ok_states, total_states, s_verify))
+    total = 0.0
+    for key, name, hint in CRIT:
+        v = given.get(key)
+        if v is None:
+            print("  %s. %-22s —— / 2.0   （未填）" % (key, name))
+            print("        %s" % hint)
+            continue
+        v = max(0.0, min(float(v), 2.0))
+        total += v
+        print("  %s. %-22s %4.1f / 2.0  %s" % (key, name, v, "█" * int(round(v))))
+        print("        %s" % hint)
+
     print("  " + "-" * 56)
-    print("  %-6s %4.1f / %.1f" % ("合计", depth + fit, FULL_DEPTH + FULL_FIT))
+    print("  %-6s %4.1f / 12.0" % ("合计", total))
     print()
-    print("  ※ 点破句 %d 句——只作提示，本模型不据此扣分。" % said)
+    print("  ※ 工具能做的是核对：作者说段3 是磕碜，就去段3 找「磕碜」。")
+    print("    六条判据本身是判断，由作者给分——暗线是作者的意图，工具不越位。")
+    if said:
+        print("  ※ 点破句 %d 句（只作提示）。" % said)
     return 0
 
 
