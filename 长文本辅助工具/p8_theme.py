@@ -139,71 +139,78 @@ def main():
         return 0
 
     st = theme.get("statement", "").strip()
-    pts = theme.get("points") or []
+    anchors = theme.get("anchors") or []
     print("  暗线一句话：%s" % (st or "（空）"))
-    print("  对应点 %d 个：" % len(pts))
-    ok_pts = 0
-    for i, p in enumerate(pts, 1):
-        surf = p.get("surface", "").strip()
-        under = p.get("under", "").strip()
-        paras = p.get("paras") or []
-        # 工具核对：段号是否存在；该段正文是否真的含这个"明面"关键词
-        bad = []
-        for pid in paras:
+    print("  锚定对象 %d 个：" % len(anchors))
+
+    ok_anchor = 0
+    full_anchor = 0
+    total_states = 0
+    ok_states = 0
+    for a in anchors:
+        name = a.get("name", "").strip()
+        under = a.get("under", "").strip()
+        states = a.get("states") or []
+        total_states += len(states)
+        # 核对每个状态的段号与关键词
+        valid = 0
+        for s in states:
+            pid = s.get("para")
+            keys = s.get("keys") or []
             row = next((x for x in paras_all if x["para_id"] == pid), None)
-            if row is None:
-                bad.append("段%d 不存在" % pid)
-            elif surf and surf[:2] not in row["text"] and not any(
-                    k and k in row["text"] for k in p.get("keys", [])):
-                bad.append("段%d 里找不到这个明面" % pid)
-        state = "✓" if (surf and under and paras and not bad) else "⚠"
-        if state == "✓":
-            ok_pts += 1
-        print("  %s %d. %s  ↔  %s   [段 %s]"
-              % (state, i, surf or "（空）", under or "（没写暗面）",
-                 ",".join(map(str, paras)) or "—"))
-        for b in bad:
-            print("        ⚠ %s" % b)
+            hit = bool(row) and (not keys or any(k in row["text"] for k in keys))
+            if hit:
+                valid += 1
+        ok_states += valid
+        good = (name and under and len(states) >= 2 and valid == len(states))
+        if good:
+            ok_anchor += 1
+        if len(states) >= 3 and valid == len(states):
+            full_anchor += 1
+        print("  %s %s  ↔  %s" % ("✓" if good else "⚠", name or "（空）",
+                                  under or "（没写暗面）"))
+        for s in states:
+            pid = s.get("para")
+            desc = s.get("state", "")
+            keys = s.get("keys") or []
+            row = next((x for x in paras_all if x["para_id"] == pid), None)
+            hit = bool(row) and (not keys or any(k in row["text"] for k in keys))
+            print("      段%-2d %s  %s" % (pid if pid else 0, desc,
+                                          "✓" if hit else "⚠ 正文里找不到"))
 
     said = theme.get("said_out_loud")
     if said is None:
         said = len(hits)
 
     # ---------- 评分 ----------
-    # 深度：写得清 2 + 每个点都有暗面 2 + 点破控制 2
-    s_state = 2.0 if st else 0.0
-    s_under = 2.0 * (min(ok_pts, len(pts)) / len(pts)) if pts else 0.0
-    if said <= 0:
-        s_said = 2.0
-    elif said <= 2:
-        s_said = 1.5
-    elif said <= 4:
-        s_said = 1.0
-    else:
-        s_said = 0.5
-    depth = s_state + s_under + s_said
+    # 深度 6：锚定物有没有第二层 3 + 变化轨迹够不够完整 3
+    s_under = 3.0 * (ok_anchor / len(anchors)) if anchors else 0.0
+    s_traj = 3.0 * (full_anchor / len(anchors)) if anchors else 0.0
+    depth = s_under + s_traj
 
-    # 契合度：对应点数量（每条都要能核对上）
-    n_ok = ok_pts
-    if n_ok >= 4:
-        fit = FULL_FIT
-    elif n_ok == 3:
-        fit = 4.5
-    elif n_ok == 2:
-        fit = 3.0
-    elif n_ok == 1:
-        fit = 1.5
+    # 契合度 6：锚定物数量 3 + 每处状态都能在正文核对上 3
+    if len(anchors) >= 3:
+        s_cnt = 3.0
+    elif len(anchors) == 2:
+        s_cnt = 2.0
+    elif len(anchors) == 1:
+        s_cnt = 1.0
     else:
-        fit = 0.0
+        s_cnt = 0.0
+    s_verify = 3.0 * (ok_states / total_states) if total_states else 0.0
+    fit = s_cnt + s_verify
 
     print("\n" + "=" * 62)
     print("E. 评分")
     print("=" * 62)
-    print("  深度    %4.1f / %.1f   说清了 %.0f + 暗面齐 %.1f + 点破控制 %.1f（点破 %d 句）"
-          % (depth, FULL_DEPTH, s_state, s_under, s_said, said))
-    print("  契合度  %4.1f / %.1f   能核对上的对应点 %d 个" % (fit, FULL_FIT, n_ok))
+    print("  深度    %4.1f / %.1f   有第二层 %d/%d 个锚定物（%.1f）+ 轨迹 ≥3 态 %d 个（%.1f）"
+          % (depth, FULL_DEPTH, ok_anchor, len(anchors), s_under, full_anchor, s_traj))
+    print("  契合度  %4.1f / %.1f   锚定物 %d 个（%.1f）+ 状态可核对 %d/%d（%.1f）"
+          % (fit, FULL_FIT, len(anchors), s_cnt, ok_states, total_states, s_verify))
     print("  " + "-" * 56)
     print("  %-6s %4.1f / %.1f" % ("合计", depth + fit, FULL_DEPTH + FULL_FIT))
+    print()
+    print("  ※ 点破句 %d 句——只作提示，本模型不据此扣分。" % said)
     return 0
 
 
