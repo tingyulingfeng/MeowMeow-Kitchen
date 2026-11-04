@@ -32,6 +32,11 @@ PEN_FLAT = 1.0
 PEN_TYPO = 0.5
 PEN_CITE = 1.0
 
+# 引用密度的合理区间（处 / 千字）
+DENS_LOW = 0.3      # 低于此值算"点缀式"，2 分上限按比例打折
+DENS_HIGH = 1.5     # 高于此值算"堆砌"，每超 1 处扣 50% 上限
+DENS_PEN = 0.5
+
 TYPO = [
     ("首尾呼应", "首尾呼应"), ("喻示", "预示"),
     ("迫不急待", "迫不及待"), ("一如继往", "一如既往"),
@@ -167,12 +172,28 @@ def main():
         cap_con = F_CONCRETE + F_CITE
         why_cite = "无引用 —— 该项 2 分并入具体化（引用是借力，具体化是自己落地）"
     else:
-        bad = [c for _, c in cites if not c.get("accurate", True) or c.get("fit", True) is False]
-        s_cite = max(0.0, F_CITE - PEN_CITE * len(bad))
-        cap_cite = F_CITE
+        # 引用密度：每千字几处。
+        # 万字引一处是点缀，千字引五处是堆砌，不能同一把尺子。
+        chars = len(full)
+        per_k = len(cites) / (chars / 1000) if chars else 0
+        if per_k < DENS_LOW:
+            cover = per_k / DENS_LOW                 # 太少，上限打折
+            dtag = "偏少（%.2f 处/千字，低于 %.1f）" % (per_k, DENS_LOW)
+        elif per_k <= DENS_HIGH:
+            cover = 1.0
+            dtag = "合适（%.2f 处/千字）" % per_k
+        else:
+            cover = max(0.0, 1 - (per_k - DENS_HIGH) * DENS_PEN)
+            dtag = "过密（%.2f 处/千字，高于 %.1f）" % (per_k, DENS_HIGH)
+
+        bad = [c for _, c in cites
+               if not c.get("accurate", True) or c.get("fit", True) is False]
+        s_cite = max(0.0, F_CITE * cover - PEN_CITE * len(bad))
+        cap_cite = F_CITE * cover
         s_con = F_CONCRETE * ratio
         cap_con = F_CONCRETE
-        why_cite = "%d 处引用，%d 处不当（准确度 / 契合度）" % (len(cites), len(bad))
+        why_cite = ("%d 处引用 / %d 字 = %s，上限 %.1f；不当 %d 处"
+                    % (len(cites), chars, dtag, cap_cite, len(bad)))
 
     print("  错别字    %4.1f / %.1f   命中 %d 处" % (s_typo, F_TYPO, len(typo)))
     print("  查错      %4.1f / %.1f   语义重复 %d，句长%s"
